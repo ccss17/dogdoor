@@ -1,14 +1,10 @@
-#include <sys/types.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-#define DEBUG 0
+#define CMD_SIZE 256
 
-#if DEBUG
-const char * PROC_PATH = "/tmp/test.txt";
-#else
 const char * PROC_PATH = "/proc/dogdoor";
-#endif
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -17,20 +13,13 @@ int main(int argc, char* argv[]) {
     }
 
     struct passwd * pw = getpwnam(argv[1]);
-    /*FILE * fp = fopen(PROC_PATH, "w");*/
+    char cmd[CMD_SIZE];
 
-    /*if (fp == NULL) {*/
-        /*fprintf(stderr, "%s does not exist!\n", PROC_PATH);*/
-        /*return 1;*/
-    /*}*/
-
-    /*(pw != NULL) ? fprintf(fp, "%d", pw->pw_uid) : fprintf(fp, "-1");*/
-
-    char buf[1024];
-    sprintf(buf, "echo %d > /proc/dogdoor", pw->pw_uid);
+    if (pw != NULL)
+        sprintf(cmd, "echo %d > /proc/dogdoor", pw->pw_uid);
+    else
+        sprintf(cmd, "echo -1 > /proc/dogdoor");
     system(buf);
-    // echo 123 > /proc/dogdoor
 
-    /*fclose(fp);*/
     return 0;
 }

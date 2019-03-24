@@ -7,17 +7,13 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <asm/unistd.h>
-
 #include <linux/cred.h>
-
 #include <linux/types.h>
-/*#include <pwd.h>*/
 
 MODULE_LICENSE("GPL");
 
-char filepath[128] = { 0x0, } ;
+char user_uid[128] = { 0x0, } ;
 void ** sctable ;
-int count = 0 ;
 uid_t username_uid = -1;
 
 asmlinkage int (*orig_sys_open)(const char __user * filename, int flags, umode_t mode) ; 
@@ -28,15 +24,13 @@ asmlinkage int dogdoor_sys_open(const char __user * filename, int flags, umode_t
 
 	copy_from_user(fname, filename, 256) ;
 
-	/*if (filepath[0] != 0x0 && strcmp(filepath, fname) == 0) {*/
-		/*count++ ;*/
-        /*return orig_sys_open(filename, flags, mode) ;*/
-	/*}*/
     const struct cred * my_cred = current_cred();
-    /*if (my_cred->uid == username_uid && username_uid != -1) {*/
-        /*// logging*/
-    /*}*/
-    printk("OS Homework : %s, Current UID: %d, Current EUID: %d, Current USER: %s\n", fname, my_cred->uid, my_cred->euid, my_cred->user);
+    long i_user_uid = simple_strtol(user_uid, NULL, 10);
+
+    if (my_cred->uid.val == (unsigned int)i_user_uid && i_user_uid != -1) {
+        printk("OS Homework : %s, Current UID: %d, Current EUID: %d, Current USER: %s\n", fname, my_cred->uid, my_cred->euid, my_cred->user);
+    }
+
 	return orig_sys_open(filename, flags, mode) ;
 }
 
@@ -57,20 +51,12 @@ ssize_t dogdoor_proc_read(struct file *file, char __user *ubuf, size_t size, lof
 	char buf[256] ;
 	ssize_t toread ;
 
-    /*struct passwd * my_passwd = getpwnam(filepath);*/
-    /*if (my_passwd != 0)*/
-        /*sprintf(buf, "%s:%d\n", filepath, my_passwd->pw_uid) ;*/
-        sprintf(buf, "%s:%d\n", filepath, count);
-    /*else*/
-        /*sprintf(buf, "%s doesn't exist\n", filepath) ;*/
+    sprintf(buf, "%s", user_uid);
 
 	toread = strlen(buf) >= *offset + size ? size : strlen(buf) - *offset ;
-
 	if (copy_to_user(ubuf, buf + *offset, toread))
 		return -EFAULT ;	
-
 	*offset = *offset + toread ;
-
 	return toread ;
 }
 
@@ -85,8 +71,7 @@ ssize_t dogdoor_proc_write(struct file *file, const char __user *ubuf, size_t si
 	if (copy_from_user(buf, ubuf, size))
 		return -EFAULT ;
 
-	sscanf(buf,"%s", filepath) ;
-	count = 0 ;
+	sscanf(buf,"%s", user_uid) ;
 	*offset = strlen(buf) ;
 
 	return *offset ;
