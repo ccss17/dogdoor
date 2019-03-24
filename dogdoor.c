@@ -26,7 +26,19 @@ int count_accessed_filenames = 0;
 asmlinkage int (*orig_sys_open)(const char __user * filename, int flags, umode_t mode) ; 
 
 static
+int is_in_filename(const char __user * filename) {
+    int i;
+    for (i=0; i<FILENAME_COUNT; i++) {
+        if (strcmp(filename, accessed_filenames[i]) == 0)
+            return 1;
+    }
+    return 0;
+}
+
+static
 void init_filenames(const char __user * filename) {
+    if (is_in_filename(filename))
+        return;
 	if (count_accessed_filenames < FILENAME_COUNT) {
 	    strcpy(accessed_filenames[count_accessed_filenames], filename);
 	    count_accessed_filenames++;
