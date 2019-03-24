@@ -17,15 +17,20 @@ int main(int argc, char* argv[]) {
     }
 
     struct passwd * pw = getpwnam(argv[1]);
-    FILE * fp = fopen(PROC_PATH, "w");
+    /*FILE * fp = fopen(PROC_PATH, "w");*/
 
-    if (fp == NULL) {
-        fprintf(stderr, "%s does not exist!\n", PROC_PATH);
-        return 1;
-    }
+    /*if (fp == NULL) {*/
+        /*fprintf(stderr, "%s does not exist!\n", PROC_PATH);*/
+        /*return 1;*/
+    /*}*/
 
-    (pw != NULL) ? fprintf(fp, "%d", pw->pw_uid) : fprintf(fp, "-1");
+    /*(pw != NULL) ? fprintf(fp, "%d", pw->pw_uid) : fprintf(fp, "-1");*/
 
-    fclose(fp);
+    char buf[1024];
+    sprintf(buf, "echo %d > /proc/dogdoor", pw->pw_uid);
+    system(buf);
+    // echo 123 > /proc/dogdoor
+
+    /*fclose(fp);*/
     return 0;
 }
