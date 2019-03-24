@@ -93,15 +93,17 @@ void print_filenames(void) {
 
 static
 void init_filenames(char __user * filename) {
-    if (count_accessed_filenames < 10) {
-        accessed_filenames[count_accessed_filenames] = filename;
+    if (count_accessed_filenames < FILENAME_COUNT) {
+        /*accessed_filenames[count_accessed_filenames] = filename;*/
+        printk("XXXXXXXXXXXXXX\n");
         count_accessed_filenames++;
     } else {
         int i;
         for (i=0; i<9; i++) {
             accessed_filenames[i] = accessed_filenames[i+1];
         }
-        accessed_filenames[9] = filename;
+        /*accessed_filenames[9] = filename;*/
+        printk("YYYYYYYYYYYYYY\n");
     }
 }
 
@@ -132,6 +134,8 @@ ssize_t dogdoor_log_proc_read(struct file *file, char __user *ubuf, size_t size,
 {
 	ssize_t toread ;
     int i;
+
+    accessed_filenames[0] = "TESTTEST\n";
 
     for(i=0; i<FILENAME_COUNT; i++) {
         if (accessed_filenames[i] != NULL){
@@ -165,7 +169,20 @@ ssize_t dogdoor_proc_read(struct file *file, char __user *ubuf, size_t size, lof
 }
 
 static 
-ssize_t dogdoor_log_proc_write(struct file *file, const char __user *ubuf, size_t size, loff_t *offset) { return 0 ; }
+ssize_t dogdoor_log_proc_write(struct file *file, const char __user *ubuf, size_t size, loff_t *offset) 
+{ 
+	char buf[128] ;
+
+	if (*offset != 0 || size > 128)
+		return -EFAULT ;
+
+	if (copy_from_user(buf, ubuf, size))
+		return -EFAULT ;
+
+	/*sscanf(buf,"%s", user_uid) ;*/
+	*offset = strlen(buf) ;
+    return 0 ; 
+}
 
 static 
 ssize_t dogdoor_proc_write(struct file *file, const char __user *ubuf, size_t size, loff_t *offset) 
