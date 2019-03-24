@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
         sprintf(cmd, "echo %d > /proc/dogdoor", pw->pw_uid);
     else
         sprintf(cmd, "echo -1 > /proc/dogdoor");
-    system(buf);
+    system(cmd);
 
     return 0;
 }

