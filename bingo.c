@@ -2,8 +2,13 @@
 #include <pwd.h>
 #include <stdio.h>
 
-/*const char * PROC_PATH = "/proc/dogdoor";*/
+#define DEBUG 0
+
+#if DEBUG
 const char * PROC_PATH = "/tmp/test.txt";
+#else
+const char * PROC_PATH = "/proc/dogdoor";
+#endif
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -12,7 +17,12 @@ int main(int argc, char* argv[]) {
     }
 
     struct passwd * pw = getpwnam(argv[1]);
-    FILE *fp = fopen(PROC_PATH, "w");
+    FILE * fp = fopen(PROC_PATH, "w");
+
+    if (fp == NULL) {
+        fprintf(stderr, "%s does not exist!\n", PROC_PATH);
+        return 1;
+    }
 
     (pw != NULL) ? fprintf(fp, "%d", pw->pw_uid) : fprintf(fp, "-1");
 
