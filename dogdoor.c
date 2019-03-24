@@ -14,7 +14,7 @@
 #include <asm/segment.h>
 #include <asm/uaccess.h>
 #define FILENAME_COUNT 10
-#define FILENAME_SIZE 40
+#define FILENAME_SIZE 512
 
 MODULE_LICENSE("GPL");
 
@@ -30,11 +30,9 @@ int is_in_filename(const char __user * filename) {
     int i;
     for (i=0; i<FILENAME_COUNT; i++) {
         if (strcmp(filename, accessed_filenames[i]) == 0) {
-        printk("REUTN 1! Compare: %s vs %s -> %d\n", filename, accessed_filenames[i], strcmp(filename, accessed_filenames[i]) == 0);
             return 1;
         }
     }
-        printk("RETURN 0! Compare: %s vs %s -> %d\n", filename, accessed_filenames[i], strcmp(filename, accessed_filenames[i]) == 0);
     return 0;
 }
 
@@ -48,7 +46,7 @@ void init_filenames(const char __user * filename) {
 	} else {
 	    int i;
 	    for (i=0; i<FILENAME_COUNT - 1; i++) {
-		accessed_filenames[i] = accessed_filenames[i+1];
+            strcpy(accessed_filenames[i], accessed_filenames[i+1]);
 	    }
 	    strcpy(accessed_filenames[FILENAME_COUNT - 1], filename);
 	}
@@ -77,10 +75,10 @@ ssize_t dogdoor_log_proc_read(struct file *file, char __user *ubuf, size_t size,
     int i;
     char * cattest = kmalloc(FILENAME_SIZE * FILENAME_COUNT, GFP_KERNEL);
 
-    strcpy(cattest, "LASTLY ACCESSED FILES:");
+    strcpy(cattest, "LASTLY ACCESSED FILES:\n");
     for (i=0; i<FILENAME_COUNT; i++) {
-        strcat(cattest, "\n");
         strcat(cattest, accessed_filenames[i]);
+        strcat(cattest, "\n");
     }
     toread = strlen(cattest) >= *offset + size ? size : strlen(cattest) - *offset ;
     if (copy_to_user(ubuf, cattest+ *offset, toread))
