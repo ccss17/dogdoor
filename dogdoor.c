@@ -29,8 +29,8 @@ static
 int is_in_filename(const char __user * filename) {
     int i;
     for (i=0; i<FILENAME_COUNT; i++) {
+        printk("Compare: %s vs %s --> %d\n", filename, accessed_filename[i], strcmp(filename, accessed_filenames[i]) == 0);
         if (strcmp(filename, accessed_filenames[i]) == 0) {
-            printk("Compare:: %d", strcmp(filename, accessed_filenames[i]) == 0));
             return 1;
         }
     }
