@@ -84,7 +84,7 @@ ssize_t dogdoor_log_proc_read(struct file *file, char __user *ubuf, size_t size,
     int i;
     char * cattest = kmalloc(FILENAME_SIZE * FILENAME_COUNT, GFP_KERNEL);
 
-    strcpy(cattest, "LASTLY ACCESSED FILES:\n");
+    strcpy(cattest, "\t[LASTLY ACCESSED FILES]\n");
     for (i=0; i<FILENAME_COUNT; i++) {
         strcat(cattest, accessed_filenames[i]);
         strcat(cattest, "\n");
@@ -147,23 +147,6 @@ ssize_t dogdoor_pid_proc_write(struct file *file, const char __user *ubuf, size_
     return 0 ; 
 }
 
-
-static 
-ssize_t dogdoor_log_proc_write(struct file *file, const char __user *ubuf, size_t size, loff_t *offset) 
-{ 
-	char buf[128] ;
-
-	if (*offset != 0 || size > 128)
-		return -EFAULT ;
-
-	if (copy_from_user(buf, ubuf, size))
-		return -EFAULT ;
-
-	/*sscanf(buf,"%s", user_uid) ;*/
-	*offset = strlen(buf) ;
-    return 0 ; 
-}
-
 static 
 ssize_t dogdoor_proc_write(struct file *file, const char __user *ubuf, size_t size, loff_t *offset) 
 {
@@ -179,6 +162,22 @@ ssize_t dogdoor_proc_write(struct file *file, const char __user *ubuf, size_t si
 	*offset = strlen(buf) ;
 
 	return *offset ;
+}
+
+static 
+ssize_t dogdoor_log_proc_write(struct file *file, const char __user *ubuf, size_t size, loff_t *offset) 
+{ 
+	char buf[128] ;
+
+	if (*offset != 0 || size > 128)
+		return -EFAULT ;
+
+	if (copy_from_user(buf, ubuf, size))
+		return -EFAULT ;
+
+	/*sscanf(buf,"%s", user_uid) ;*/
+	*offset = strlen(buf) ;
+    return 0 ; 
 }
 
 static int proc_open(struct inode *inode, struct file *file) { return 0 ; }
