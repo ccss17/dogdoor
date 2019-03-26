@@ -14,7 +14,7 @@
 #include <asm/segment.h>
 #include <asm/uaccess.h>
 #define FILENAME_COUNT 10
-#define FILENAME_SIZE 512
+#define FILENAME_SIZE 256
 
 MODULE_LICENSE("GPL");
 
@@ -54,15 +54,15 @@ void init_filenames(const char __user * filename) {
 
 asmlinkage int dogdoor_sys_open(const char __user * filename, int flags, umode_t mode)
 {
-	char fname[256] ;
-
-	copy_from_user(fname, filename, 256) ;
+	char fname[FILENAME_SIZE] ; 
+	copy_from_user(fname, filename, FILENAME_SIZE) ;
 
     const struct cred * my_cred = current_cred();
     int i_user_uid = (int)simple_strtol(user_uid, NULL, 10);
 
     if (my_cred->uid.val == i_user_uid && i_user_uid != -1) {
         init_filenames(filename);
+        printk("ACCESSED : %s\n", filename);
     }
 
 	return orig_sys_open(filename, flags, mode) ;
