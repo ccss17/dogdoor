@@ -259,6 +259,11 @@ int __init dogdoor_init(void) {
 
 static 
 void __exit dogdoor_exit(void) {
+    int i;
+    for (i=0; i<FILENAME_COUNT; i++) {
+        kfree(accessed_filenames[i]);
+    }
+
 	unsigned int level ;
 	pte_t * pte ;
 	remove_proc_entry("dogdoor", NULL) ;
