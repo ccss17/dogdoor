@@ -5,27 +5,20 @@
 #include <unistd.h>
 
 #define CMD_SIZE 128
+#define ARG_PARSER ":u:p:h"
+#define PATH_DOGDOOR "/proc/dogdoor"
+#define PATH_DOGDOOR_PID "/proc/dogdoor_pid"
+#define CMD_ECHO "echo %d > "
 
-const char * ARG_PARSER = ":u:p:h";
-const char * PATH_DOGDOOR = "/proc/dogdoor";
-const char * PATH_DOGDOOR_PID = "/proc/dogdoor_pid";
-const char * CMD_ECHO  = "echo %d > ";
-const char * CMD_ECHO_1  = "echo -1 > ";
-
-void help_usage() {
-    fprintf(stderr, "Usage: bingo -u <USER_NAME> -p <PID>\n");
-}
-void help_pid() {
-    fprintf(stderr, "\tPID: prevent kill PID\n");
-}
-void help_username() {
-    fprintf(stderr, "\tUSER_NAME: logging to /proc/dogdoor_log lastly ten files accessed by USER_NAME\n");
-}
 void help_msg() {
-    help_usage();
-    help_username();
-    help_pid();
+    fprintf(stderr,
+        "Usage: bingo [-u user | -p pid]\n"
+        "Options:\n"
+        "\t-p pid\t: prevent kill pid\n"
+        "\t-u user\t: logging to /proc/dogdoor_log lastly ten files accessed by user_name\n"
+    );
 }
+
 void need_help() {
     fprintf(stderr, "enter './bingo -h' for help message\n");
 }
@@ -33,29 +26,18 @@ void need_help() {
 void process_username(char * username) {
     struct passwd * pw;
     char cmd[CMD_SIZE];
-    char * p_cmd;
 
     pw = getpwnam(username);
-    if (pw != NULL) {
-        p_cmd = (char *)malloc(strlen(CMD_ECHO) + strlen(PATH_DOGDOOR));
-        strcpy(p_cmd, CMD_ECHO);
-        strcat(p_cmd, PATH_DOGDOOR);
-        sprintf(cmd, p_cmd, pw->pw_uid);
-        free(p_cmd);
-    }
-    else {
-        strcpy(cmd, CMD_ECHO_1);
-        strcat(cmd, PATH_DOGDOOR);
-    }
+    if (pw != NULL) 
+        sprintf(cmd, CMD_ECHO PATH_DOGDOOR, pw->pw_uid);
+    else 
+        sprintf(cmd, CMD_ECHO PATH_DOGDOOR, -1);
     system(cmd);
 }
 
 void process_pid(int pid) {
     char cmd[CMD_SIZE];
-    char * p_cmd = (char *)malloc(strlen(CMD_ECHO) + strlen(PATH_DOGDOOR_PID));
-    strcpy(p_cmd, CMD_ECHO);
-    strcat(p_cmd, PATH_DOGDOOR_PID);
-    sprintf(cmd, p_cmd, pid);
+    sprintf(cmd, CMD_ECHO PATH_DOGDOOR_PID, pid);
     system(cmd);
 }
 
@@ -65,29 +47,23 @@ void argparse(int argc, char * argv[]) {
     {  
         switch(opt)  
         {
-        case 'u':
-            process_username(optarg);
-            break;  
-        case 'p':
-            process_pid(atoi(optarg));
-            break;  
-        case 'h':
-            help_msg();
-            break;  
-        case ':':  
-            if (opt == 'u') {
-                help_usage();
-                help_username();
-            }
-            if (opt == 'p') {
-                help_usage();
-                help_pid();
-            }
-            break;  
-        case '?':  
-            fprintf(stderr, "unknown option: %c\n", optopt); 
-            need_help();
-            break;  
+            case 'u':
+                process_username(optarg);
+                break;  
+            case 'p':
+                process_pid(atoi(optarg));
+                break;  
+            case 'h':
+                help_msg();
+                break;  
+            case ':':  
+                if (opt == 'u' || opt == 'p') 
+                    help_msg();
+                break;  
+            case '?':  
+                fprintf(stderr, "unknown option: %c\n", optopt); 
+                need_help();
+                break;  
         }  
     }
 }

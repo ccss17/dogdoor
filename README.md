@@ -1,25 +1,38 @@
 # dogdoor
+
 simple rootkit testing code
+
+**Only tested on ubuntu 16.04**
 
 ---
 
-### usage
+## Installation of rootkit dogdoor
 
-##### install rootkit
-
-```
+```shell
 make
 sudo insmod dogdoor.ko
 ```
 
-##### uninstall
+## uninstall
 
-``` sudo rmmod dogdoor ```
+```shell
+sudo rmmod dogdoor
+```
 
-##### make sure LKM(rootkit) is in place
+## usage
 
-``` lsmod | grep dogdoor ```
+### make sure LKM(rootkit) is in place
 
-##### use bingo to utilize rootkit
+```shell
+lsmod | grep dogdoor
+```
 
-``` ./bingo -h ```
+### use bingo to utilize rootkit
+
+```shell
+$ ./bingo -h 
+Usage: bingo [-u user | -p pid]
+Options:
+        -p pid  : prevent kill pid
+                -u user : logging to /proc/dogdoor_log lastly ten files accessed by user_name
+```
