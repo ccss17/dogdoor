@@ -14,8 +14,8 @@ void help_msg() {
     fprintf(stderr,
         "Usage: bingo [-u user | -p pid]\n"
         "Options:\n"
-        "\t-p pid\t: prevent kill pid\n"
         "\t-u user\t: logging to /proc/dogdoor_log lastly ten files accessed by user_name\n"
+        "\t-p pid\t: prevent kill pid\n"
     );
 }
 
